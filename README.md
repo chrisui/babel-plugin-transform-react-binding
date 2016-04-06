@@ -30,6 +30,6 @@ $ babel --plugins transform-react-binding script.js
 
 ```javascript
 require("babel-core").transform("code", {
-  plugins: [babel-plugin-transform-react-binding"]
+  plugins: ["babel-plugin-transform-react-binding"]
 });
 ```
