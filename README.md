@@ -32,11 +32,18 @@ $ babel --plugins transform-react-binding script.js
 require("babel-core").transform("code", {
   plugins: ["babel-plugin-transform-react-binding"]
 });
+
+
+
 ```
 
-### TODO
+### Options
 
-- [ ] Complete initial implementation with `.bind()` `CallExpression`'s
-  - NB. [inline comments](https://github.com/Chrisui/babel-plugin-transform-react-binding/blob/2a380bc8bb5ab3d160a880b26bcf66fa52bca7e7/src/index.js#L9-L10)
+- `cacheLimit = 500` - number of entries to keep in memoize cache PER COMPONENT
+- `memoizeModule = 'lru-cache'` - module exporting memoize implementation
+
+## TODO
+
 - [ ] Support arrow functions in render methods
 - [ ] Support functional components
+- [ ] Finalise decision on comp vs instance cache and sensible default limit
