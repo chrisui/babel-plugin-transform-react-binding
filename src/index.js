@@ -19,7 +19,7 @@ const MEMOIZE_IDENTIFIER = require(MEMOIZE_MODULE);
  * - New memoize cache per component (per render func)
  */
 export default function({types: T}) {
-  let methodHasBindCall = false; // per render method traversal.
+  let methodHasBindCall = false;
   let moduleHasBindCall = false;
 
   const callVisitor = {
@@ -40,7 +40,12 @@ export default function({types: T}) {
   const renderMethodVisitor = {
     ClassMethod(path, {opts: {cacheSize = DEFAULT_CACHE_SIZE} = {}}) {
       if (T.isIdentifier(path.node.key, {name: 'render'})) {
-        const bindFuncIdentifier = path.scope.generateUidIdentifier('bindRenderFunc');
+        let insertBeforePath = path.parentPath;
+        while (!T.isProgram(insertBeforePath.parentPath)) {
+          insertBeforePath = insertBeforePath.parentPath;
+        }
+
+        const bindFuncIdentifier = insertBeforePath.scope.generateUidIdentifier('bindRenderFunc');
         const bindFunc = memoizeBindTemplate({
           FUNC_IDENTIFIER: bindFuncIdentifier,
           CACHE_SIZE: T.numericLiteral(cacheSize),
@@ -50,9 +55,9 @@ export default function({types: T}) {
         path.traverse(callVisitor, {bindFuncIdentifier});
 
         if (methodHasBindCall) {
-          path.parentPath.parentPath.insertBefore(bindFunc);
+          insertBeforePath.insertBefore(bindFunc);
+          methodHasBindCall = false;
         }
-        methodHasBindCall = false;
       }
     }
   };
@@ -73,6 +78,7 @@ export default function({types: T}) {
           MEMOIZE_MODULE: T.stringLiteral(memoizeModule)
         });
         path.node.body.splice(0, 0, imprt);
+        moduleHasBindCall = false;
       }
     }
   };
