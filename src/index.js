@@ -1,24 +1,22 @@
-import template from "babel-template";
-
-const DEFAULT_CACHE_SIZE = 500;
-const DEFAULT_MEMOIZE_MODULE = 'lru-memoize';
-
-const memoizeBindTemplate = template(`
-const FUNC_IDENTIFIER = MEMOIZE_IDENTIFIER(CACHE_SIZE)(function(func, context, ...args) {
-  return func.bind(context, ...args);
-});
-`);
-
-const importTemplate = template(`
-const MEMOIZE_IDENTIFIER = require(MEMOIZE_MODULE);
-`);
-
 /**
  * New babel plugin replacing *.bind() calls in react render methods with
  * memoized bind calls to prevent recreation of function references
  * - New memoize cache per component (per render func)
  */
-export default function({types: T}) {
+export default function({types: T, template}) {
+  const DEFAULT_CACHE_SIZE = 500;
+  const DEFAULT_MEMOIZE_MODULE = 'lru-memoize';
+
+  const memoizeBindTemplate = template(`
+  const FUNC_IDENTIFIER = MEMOIZE_IDENTIFIER(CACHE_SIZE)(function(func, context, ...args) {
+    return func.bind(context, ...args);
+  });
+  `);
+
+  const importTemplate = template(`
+  const MEMOIZE_IDENTIFIER = require(MEMOIZE_MODULE);
+  `);
+
   let methodHasBindCall = false;
   let moduleHasBindCall = false;
 
