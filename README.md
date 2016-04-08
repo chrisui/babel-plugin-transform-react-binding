@@ -1,3 +1,7 @@
+<p align="center">
+  😱 Experimental! 😱
+</p>
+
 # babel-plugin-transform-react-binding
 
 Automatically memoize function binding in your react render methods.
