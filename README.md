@@ -26,7 +26,16 @@ We will transparently bind and memoize these behind the scenes. [[Example]](http
 ## Installation
 
 ```sh
-$ npm install babel-plugin-transform-react-binding
+$ npm install babel-plugin-transform-react-binding --save-dev
+```
+
+We also leave the memoize implementation up to you allowing you to specify via the
+`memoizeModule` option (see [#Options](#Options)). By default this uses the
+[lru-memoize](https://www.npmjs.com/package/lru-memoize) package so you need to install
+that too to get the default working.
+
+```sh
+$ npm install lru-memoize --save
 ```
 
 ## Usage
