@@ -1,7 +1,11 @@
 /**
- * New babel plugin replacing *.bind() calls in react render methods with
- * memoized bind calls to prevent recreation of function references
- * - New memoize cache per component (per render func)
+ * New babel plugin optimising function binding in React render methods
+ * @note replaces `func.bind(this, value)` calls
+ * @note replaces `() => func(value)` calls
+ *
+ * @todo Support functional components
+ * @todo More safety around finding "react render method"
+ * @todo Explore per-instance cache
  */
 export default function({types: T, template}) {
   const DEFAULT_CACHE_SIZE = 500;
@@ -17,9 +21,12 @@ export default function({types: T, template}) {
   const MEMOIZE_IDENTIFIER = require(MEMOIZE_MODULE);
   `);
 
+  // traversal trackers
   let methodHasBindCall = false;
   let moduleHasBindCall = false;
+  let hoistedFuncs = [];
 
+  // Find and optimise .bind() calls and () => func expressions
   const callVisitor = {
     CallExpression(path) {
       if (
@@ -27,34 +34,82 @@ export default function({types: T, template}) {
         && T.isIdentifier(path.node.callee.property, {name: 'bind'})
       ) {
         methodHasBindCall = moduleHasBindCall = true;
+
+        // replace expression with optimised bind call
         path.replaceWith(T.callExpression(
           this.bindFuncIdentifier,
           [path.node.callee.object, ...path.node.arguments]
         ));
       }
+    },
+    ArrowFunctionExpression(path) {
+      methodHasBindCall = moduleHasBindCall = true;
+
+      const hoistedFuncIdentifier = this.insertScope.generateUidIdentifier('hoistedFunc');
+      const referencedIdentifiers = [];
+
+      // extract referenced identifiers so we can bind them
+      path.get('body').traverse({
+        Identifier(idPath) {
+          if (!path.node.params.find(param => param.name === idPath.node.name)) {
+            referencedIdentifiers.push(idPath.node);
+          }
+        }
+      });
+
+      // create a function which can be hoisted from the render function
+      const funcBody = T.isBlockStatement(path.node.body)
+        ? path.node.body
+        : T.blockStatement([
+        T.returnStatement(path.node.body)
+      ]);
+      const hoistedFunc = T.functionDeclaration(
+        hoistedFuncIdentifier,
+        [...referencedIdentifiers, ...path.node.params],
+        funcBody
+      );
+
+      // replace expression with optimized bind call
+      path.replaceWith(T.callExpression(
+        this.bindFuncIdentifier,
+        [hoistedFuncIdentifier, T.thisExpression(), ...referencedIdentifiers]
+      ));
+
+      hoistedFuncs.push(hoistedFunc);
     }
   };
 
+  // look for react render methods/functions
   const renderMethodVisitor = {
     ClassMethod(path, {opts: {cacheSize = DEFAULT_CACHE_SIZE} = {}}) {
       if (T.isIdentifier(path.node.key, {name: 'render'})) {
+        // find the appropiate location and scope for code insertion
         let insertBeforePath = path.parentPath;
         while (!T.isProgram(insertBeforePath.parentPath)) {
           insertBeforePath = insertBeforePath.parentPath;
         }
+        const insertScope = insertBeforePath.scope;
 
-        const bindFuncIdentifier = insertBeforePath.scope.generateUidIdentifier('bindRenderFunc');
+        // Create a new memoized function binder
+        const bindFuncIdentifier = insertScope.generateUidIdentifier('bindRenderFunc');
         const bindFunc = memoizeBindTemplate({
           FUNC_IDENTIFIER: bindFuncIdentifier,
           CACHE_SIZE: T.numericLiteral(cacheSize),
           MEMOIZE_IDENTIFIER: this.memoizeIdentifier
         });
 
-        path.traverse(callVisitor, {bindFuncIdentifier});
+        // look for calls/binds to optimized!
+        path.traverse(callVisitor, {bindFuncIdentifier, insertScope});
 
+        // insert memoize bind function and hosited functions if there are any
         if (methodHasBindCall) {
           insertBeforePath.insertBefore(bindFunc);
           methodHasBindCall = false;
+
+          for (let i = 0; i < hoistedFuncs.length; ++i) {
+            insertBeforePath.insertBefore(hoistedFuncs[i]);
+          }
+          hoistedFuncs = [];
         }
       }
     }
@@ -64,12 +119,10 @@ export default function({types: T, template}) {
     // Top-level `Program` traversal due to ordering issues
     // See https://phabricator.babeljs.io/T6730 for info
     Program(path, {opts: {memoizeModule = DEFAULT_MEMOIZE_MODULE} = {}}) {
-      // TODO: Find reliable "react component ast" first rather any "render" named method
-
       const memoizeIdentifier = path.scope.generateUidIdentifier('memoize');
       path.traverse(renderMethodVisitor, {memoizeIdentifier});
 
-      // add memoize import
+      // add memoize import if needed
       if (moduleHasBindCall) {
         const imprt = importTemplate({
           MEMOIZE_IDENTIFIER: memoizeIdentifier,
