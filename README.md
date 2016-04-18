@@ -14,12 +14,12 @@ you're *recreating* those functions on *every* render call. To fix this you need
 do context binding elsewhere, pass extra redundant props to caller or muck about with
 cumbersome boilerplate.
 
-This plugin takes care of this for you.
+This plugin takes care of this for you. Write your `func.bind(this, whatever, arg)` calls. Use `event => handler(some, args, event)`
+freely.
 
-Write your `func.bind(this, whatever, arg)` calls. Use `event => handler(some, args, event)`
-freely. Just, stop worrying!
+Just, stop worrying!
 
-We will transparently bind and memoize these behind the scenes.
+We will transparently bind and memoize these behind the scenes. [[Example]](https://astexplorer.net/#/JDXJSoobah/1)
 
 > You can read more about the function binding problem [here](https://medium.com/@roman01la/avoid-partial-application-in-react-components-3c9e36d7f735#.6188frv1b).
 
