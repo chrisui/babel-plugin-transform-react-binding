@@ -26,6 +26,28 @@ export default function({types: T, template}) {
   let moduleHasBindCall = false;
   let hoistedFuncs = [];
 
+  /**
+   * Does a given path contain react elements?
+   * Eg. JSX or React.createElement() calls
+   * @todo support React.createElement()
+   */
+  function containsReactElements(path) {
+    if (T.isJSXElement(path)) {
+      return true;
+    }
+
+    let doesContainJSX = false;
+
+    path.traverse({
+      JSXElement(jsxPath) {
+        doesContainJSX = true;
+        jsxPath.stop();
+      }
+    });
+
+    return doesContainJSX;
+  }
+
   // Find and optimise .bind() calls and () => func expressions
   const callVisitor = {
     CallExpression(path) {
@@ -79,38 +101,58 @@ export default function({types: T, template}) {
     }
   };
 
+  /** */
+  function traverseRenderFunc(path) {
+    // find the appropiate location and scope for code insertion
+    let insertBeforePath = path.parentPath;
+    while (!T.isProgram(insertBeforePath.parentPath)) {
+      insertBeforePath = insertBeforePath.parentPath;
+    }
+    const insertScope = insertBeforePath.scope;
+
+    // Create a new memoized function binder
+    const bindFuncIdentifier = insertScope.generateUidIdentifier('bindRenderFunc');
+    const bindFunc = memoizeBindTemplate({
+      FUNC_IDENTIFIER: bindFuncIdentifier,
+      CACHE_SIZE: T.numericLiteral(cacheSize),
+      MEMOIZE_IDENTIFIER: this.memoizeIdentifier
+    });
+
+    // look for calls/binds to optimized!
+    path.traverse(callVisitor, {bindFuncIdentifier, insertScope});
+
+    // insert memoize bind function and hosited functions if there are any
+    if (methodHasBindCall) {
+      insertBeforePath.insertBefore(bindFunc);
+      methodHasBindCall = false;
+
+      for (let i = 0; i < hoistedFuncs.length; ++i) {
+        insertBeforePath.insertBefore(hoistedFuncs[i]);
+      }
+      hoistedFuncs = [];
+    }
+  }
+
   // look for react render methods/functions
   const renderMethodVisitor = {
     ClassMethod(path, {opts: {cacheSize = DEFAULT_CACHE_SIZE} = {}}) {
-      if (T.isIdentifier(path.node.key, {name: 'render'})) {
-        // find the appropiate location and scope for code insertion
-        let insertBeforePath = path.parentPath;
-        while (!T.isProgram(insertBeforePath.parentPath)) {
-          insertBeforePath = insertBeforePath.parentPath;
-        }
-        const insertScope = insertBeforePath.scope;
-
-        // Create a new memoized function binder
-        const bindFuncIdentifier = insertScope.generateUidIdentifier('bindRenderFunc');
-        const bindFunc = memoizeBindTemplate({
-          FUNC_IDENTIFIER: bindFuncIdentifier,
-          CACHE_SIZE: T.numericLiteral(cacheSize),
-          MEMOIZE_IDENTIFIER: this.memoizeIdentifier
-        });
-
-        // look for calls/binds to optimized!
-        path.traverse(callVisitor, {bindFuncIdentifier, insertScope});
-
-        // insert memoize bind function and hosited functions if there are any
-        if (methodHasBindCall) {
-          insertBeforePath.insertBefore(bindFunc);
-          methodHasBindCall = false;
-
-          for (let i = 0; i < hoistedFuncs.length; ++i) {
-            insertBeforePath.insertBefore(hoistedFuncs[i]);
-          }
-          hoistedFuncs = [];
-        }
+      if (T.isIdentifier(path.node.key, {name: 'render'}) && containsReactElements(path)) {
+        traverseRenderFunc(path);
+      }
+    },
+    ArrowFunctionExpression(path) {
+      if (containsReactElements(path)) {
+        traverseRenderFunc(path);
+      }
+    },
+    FunctionDeclaration(path) {
+      if (containsReactElements(path)) {
+        traverseRenderFunc(path);
+      }
+    },
+    FunctionExpression(path) {
+      if (containsReactElements(path)) {
+        traverseRenderFunc(path);
       }
     }
   };
