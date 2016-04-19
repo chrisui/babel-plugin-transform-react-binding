@@ -102,9 +102,9 @@ export default function({types: T, template}) {
   };
 
   /** */
-  function traverseRenderFunc(path) {
+  function traverseRenderFunc(path, {opts: {cacheSize = DEFAULT_CACHE_SIZE} = {}}) {
     // find the appropiate location and scope for code insertion
-    let insertBeforePath = path.parentPath;
+    let insertBeforePath = path;
     while (!T.isProgram(insertBeforePath.parentPath)) {
       insertBeforePath = insertBeforePath.parentPath;
     }
@@ -135,24 +135,24 @@ export default function({types: T, template}) {
 
   // look for react render methods/functions
   const renderMethodVisitor = {
-    ClassMethod(path, {opts: {cacheSize = DEFAULT_CACHE_SIZE} = {}}) {
+    ClassMethod(path, context) {
       if (T.isIdentifier(path.node.key, {name: 'render'}) && containsReactElements(path)) {
-        traverseRenderFunc(path);
+        traverseRenderFunc.call(this, path, context);
       }
     },
-    ArrowFunctionExpression(path) {
+    ArrowFunctionExpression(path, context) {
       if (containsReactElements(path)) {
-        traverseRenderFunc(path);
+        traverseRenderFunc.call(this, path, context);
       }
     },
-    FunctionDeclaration(path) {
+    FunctionDeclaration(path, context) {
       if (containsReactElements(path)) {
-        traverseRenderFunc(path);
+        traverseRenderFunc.call(this, path, context);
       }
     },
-    FunctionExpression(path) {
+    FunctionExpression(path, context) {
       if (containsReactElements(path)) {
-        traverseRenderFunc(path);
+        traverseRenderFunc.call(this, path, context);
       }
     }
   };
