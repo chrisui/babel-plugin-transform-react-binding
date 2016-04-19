@@ -1,6 +1,6 @@
 {
   "name": "babel-plugin-transform-react-binding",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "Babel transform to optimise function binding in react render methods",
   "main": "lib/index.js",
   "scripts": {
