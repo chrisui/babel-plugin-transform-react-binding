@@ -2,10 +2,6 @@
  * New babel plugin optimising function binding in React render methods
  * @note replaces `func.bind(this, value)` calls
  * @note replaces `() => func(value)` calls
- *
- * @todo Support functional components
- * @todo More safety around finding "react render method"
- * @todo Explore per-instance cache
  */
 export default function({types: T, template}) {
   const DEFAULT_CACHE_SIZE = 500;
@@ -73,7 +69,15 @@ export default function({types: T, template}) {
       // extract referenced identifiers so we can bind them
       path.get('body').traverse({
         Identifier(idPath) {
-          if (!path.node.params.find(param => param.name === idPath.node.name)) {
+          if (
+            // Don't extract identifiers we already have within args
+          !path.node.params.find(param => param.name === idPath.node.name) &&
+          // Don't extract nested identifiers from member expressions
+          (
+            !T.isMemberExpression(idPath.parentPath.node) ||
+            idPath.parentPath.node.object.name === idPath.node.name
+          )
+          ) {
             referencedIdentifiers.push(idPath.node);
           }
         }
@@ -101,7 +105,7 @@ export default function({types: T, template}) {
     }
   };
 
-  /** */
+  /** Traverse and optimise a react render function */
   function traverseRenderFunc(path, {opts: {cacheSize = DEFAULT_CACHE_SIZE} = {}}) {
     // find the appropiate location and scope for code insertion
     let insertBeforePath = path;
