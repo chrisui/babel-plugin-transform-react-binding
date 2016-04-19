@@ -72,8 +72,3 @@ require("babel-core").transform("code", {
 - `cacheLimit = 500` - number of entries to keep in memoize cache PER COMPONENT
 - `memoizeModule = 'lru-cache'` - module exporting memoize implementation
 
-## TODO
-
-- [ ] Support arrow functions in render methods
-- [ ] Support functional components
-- [ ] Finalise decision on comp vs instance cache and sensible default limit
