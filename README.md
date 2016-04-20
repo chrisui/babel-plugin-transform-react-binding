@@ -19,7 +19,7 @@ freely.
 
 Just, stop worrying!
 
-We will transparently bind and memoize these behind the scenes. [[Example]](https://astexplorer.net/#/JDXJSoobah/1)
+We will transparently bind and memoize these behind the scenes. [[Example]](https://astexplorer.net/#/JDXJSoobah/3)
 
 > You can read more about the function binding problem [here](https://medium.com/@roman01la/avoid-partial-application-in-react-components-3c9e36d7f735#.6188frv1b).
 
@@ -30,7 +30,7 @@ $ npm install babel-plugin-transform-react-binding --save-dev
 ```
 
 We also leave the memoize implementation up to you allowing you to specify via the
-`memoizeModule` option (see [#Options](#Options)). By default this uses the
+`memoizeModule` option (see [#Options](#options)). By default this uses the
 [lru-memoize](https://www.npmjs.com/package/lru-memoize) package so you need to install
 that too to get the default working.
 
