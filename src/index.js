@@ -69,13 +69,24 @@ export default function({types: T, template}) {
       // extract referenced identifiers so we can bind them
       path.get('body').traverse({
         Identifier(idPath) {
+          const binding = idPath.scope.getBinding(idPath.node.name);
+          const local = binding
+            ? binding.scope.uid === path.scope.uid
+            : false;
+
           if (
-            // Don't extract identifiers we already have within args
-          !path.node.params.find(param => param.name === idPath.node.name) &&
-          // Don't extract nested identifiers from member expressions
+            // not locally bound
+          !local &&
+          // Don't extract nested identifiers from member expressions with
+          // the exception of computed properties
           (
             !T.isMemberExpression(idPath.parentPath.node) ||
-            idPath.parentPath.node.object.name === idPath.node.name
+            (
+              // root identifier in member expression
+              idPath.parentPath.node.object.name === idPath.node.name ||
+              // identifier within computed property
+              idPath.parentPath.node.computed === true
+            )
           )
           ) {
             referencedIdentifiers.push(idPath.node);
